@@ -6,6 +6,8 @@
   "scripts": {
     "run": "tsx src/cli.ts run",
     "summarize": "tsx src/cli.ts summarize",
+    "judge": "tsx src/cli.ts judge",
+    "analyze": "tsx src/cli.ts analyze",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test"

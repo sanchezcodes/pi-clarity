@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   DEFAULT_MODELS,
@@ -11,9 +11,20 @@ import {
   matchesFilter,
   parseModelTarget,
 } from "./core.js";
+import {
+  buildAnalysis,
+  buildJudgeTasks,
+  buildPairs,
+  caseInfoFromSuite,
+  executeJudgment,
+  judgmentExists,
+  loadJudgments,
+  type JudgePair,
+  type Stage,
+} from "./judge.js";
 import { executeRun, resultExists } from "./runner.js";
-import { createSummary } from "./summary.js";
-import type { RunSpec } from "./types.js";
+import { createSummary, loadResults } from "./summary.js";
+import type { RunResult, RunSpec } from "./types.js";
 
 interface ParsedArgs { values: Map<string, string[]>; flags: Set<string> }
 
@@ -59,6 +70,8 @@ function printHelp(): void {
 Commands:
   npm run run -- [options]
   npm run summarize -- [options]
+  npm run judge -- [options]
+  npm run analyze -- [options]
 
 Run options:
   --models <provider/model,...>  Matrix targets (repeatable)
@@ -79,6 +92,28 @@ Run options:
 Summarize options:
   --results-dir <path>          Default: results/raw
   --output <path>               Also write summary JSON to this path
+
+Judge options (blinded pairwise candidate vs control):
+  --models/--variants/--cases/--languages/--categories  Pair filters
+  --repetitions <n>             Judge only repetitions 1..n
+  --results-dir <path>          Default: results/raw
+  --judgments-dir <path>        Default: results/judgments
+  --concurrency <n>             Default: 2
+  --max-calls <n>               Maximum pending judge invocations; default: 100
+  --timeout-ms <n>              Per-judge timeout; default: 600000
+  --pi-bin <path>               Default: pi
+  --dry-run                     Print the judging plan without invoking Pi
+  --no-resume                   Re-judge pairs that already have a judgment file
+
+Analyze options:
+  --results-dir <path>          Default: results/raw
+  --judgments-dir <path>        Default: results/judgments
+  --stage <stageA|stageB>       Preregistered bar set; default: stageA
+  --output <path>               Also write analysis JSON to this path
+
+Judging is cross-model (claude-opus-5 judges gpt-5.6-sol outputs and vice versa),
+blinded, and run in both A/B orders; only order-consistent preferences count.
+Acceptance bars are frozen in reports/preregistration.md.
 
 The runner uses '--mode json' rather than '-p' because Pi's JSON event stream
 contains the authoritative final message plus provider-reported usage metadata.
@@ -186,10 +221,110 @@ async function summarizeCommand(rawArgs: string[]): Promise<void> {
   console.log(JSON.stringify(summary, null, 2));
 }
 
+function matchesPairFilters(pair: JudgePair, filters: {
+  models?: string[] | undefined;
+  variants?: string[] | undefined;
+  cases?: string[] | undefined;
+  languages?: string[] | undefined;
+  categories?: string[] | undefined;
+  maxRepetition?: number | undefined;
+}): boolean {
+  return matchesFilter(pair.model, filters.models)
+    && matchesFilter(pair.variantId, filters.variants)
+    && matchesFilter(pair.caseId, filters.cases)
+    && matchesFilter(pair.language, filters.languages)
+    && matchesFilter(pair.category, filters.categories)
+    && (filters.maxRepetition === undefined || pair.repetition <= filters.maxRepetition);
+}
+
+async function judgeCommand(rawArgs: string[]): Promise<void> {
+  const args = parseArgs(rawArgs);
+  if (args.flags.has("help")) return printHelp();
+  const casesPath = resolve(value(args, "cases-file", "cases/evaluation-cases.json")!);
+  const resultsDir = resolve(value(args, "results-dir", process.env.PI_EVAL_RESULTS_DIR ?? "results/raw")!);
+  const judgmentsDir = resolve(value(args, "judgments-dir", process.env.PI_EVAL_JUDGMENTS_DIR ?? "results/judgments")!);
+  const concurrency = positiveInteger(value(args, "concurrency", process.env.PI_EVAL_CONCURRENCY), "concurrency", 2);
+  const maxCalls = positiveInteger(value(args, "max-calls", process.env.PI_EVAL_MAX_CALLS), "max-calls", 100);
+  const timeoutMs = positiveInteger(value(args, "timeout-ms", process.env.PI_EVAL_TIMEOUT_MS), "timeout-ms", 600_000);
+  const piBin = value(args, "pi-bin", process.env.PI_EVAL_PI_BIN ?? "pi")!;
+  const maxRepetition = args.values.has("repetitions")
+    ? positiveInteger(value(args, "repetitions"), "repetitions", 1)
+    : undefined;
+
+  const [{ suite }, results] = await Promise.all([loadSuite(casesPath), loadResults(resultsDir)]);
+  const runsById = new Map<string, RunResult>(results.map((result) => [result.runId, result]));
+  const pairs = buildPairs(results).filter((pair) => matchesPairFilters(pair, {
+    models: listValue(args, "models"),
+    variants: listValue(args, "variants"),
+    cases: listValue(args, "cases"),
+    languages: listValue(args, "languages"),
+    categories: listValue(args, "categories"),
+    maxRepetition,
+  }));
+  if (!pairs.length) throw new Error("Filters selected no candidate/control pairs");
+
+  const tasks = buildJudgeTasks({ pairs, runsById, caseInfo: caseInfoFromSuite(suite) });
+  await mkdir(judgmentsDir, { recursive: true });
+  const resume = !args.flags.has("no-resume");
+  const pending = [];
+  let skipped = 0;
+  for (const task of tasks) {
+    if (resume && await judgmentExists(judgmentsDir, task.judgmentId)) skipped += 1;
+    else pending.push(task);
+  }
+  console.log(JSON.stringify({
+    suiteId: suite.suite_id,
+    pairs: pairs.length,
+    totalJudgeCalls: tasks.length,
+    skipped,
+    pending: pending.length,
+    judges: [...new Set(tasks.map((task) => `${task.judge.provider}/${task.judge.model}`))],
+    concurrency,
+    maxCalls,
+    judgmentsDir,
+  }, null, 2));
+  if (args.flags.has("dry-run")) return;
+  if (pending.length > maxCalls) {
+    throw new Error(`Safety limit: ${pending.length} pending judge calls exceeds --max-calls ${maxCalls}. Filter the matrix or explicitly raise the limit.`);
+  }
+  if (!pending.length) return;
+
+  const judgments = await mapConcurrent(pending, concurrency, async (task, index) => {
+    console.error(`[${index + 1}/${pending.length}] ${task.judgmentId}`);
+    const candidate = runsById.get(task.pair.candidateRunId)!;
+    const control = runsById.get(task.pair.controlRunId)!;
+    return executeJudgment(task, {
+      judgmentsDir,
+      piBin,
+      timeoutMs,
+      lengthDeltaChars: candidate.assistantText.length - control.assistantText.length,
+    });
+  });
+  const failed = judgments.filter((judgment) => judgment.status === "failed").length;
+  console.log(JSON.stringify({ completed: judgments.length, succeeded: judgments.length - failed, failed }, null, 2));
+  if (failed) process.exitCode = 1;
+}
+
+async function analyzeCommand(rawArgs: string[]): Promise<void> {
+  const args = parseArgs(rawArgs);
+  if (args.flags.has("help")) return printHelp();
+  const resultsDir = resolve(value(args, "results-dir", process.env.PI_EVAL_RESULTS_DIR ?? "results/raw")!);
+  const judgmentsDir = resolve(value(args, "judgments-dir", process.env.PI_EVAL_JUDGMENTS_DIR ?? "results/judgments")!);
+  const stage = value(args, "stage", "stageA")!;
+  if (stage !== "stageA" && stage !== "stageB") throw new Error("--stage must be stageA or stageB");
+  const [results, judgments] = await Promise.all([loadResults(resultsDir), loadJudgments(judgmentsDir)]);
+  const analysis = buildAnalysis({ results, judgments, stage: stage as Stage });
+  const output = value(args, "output");
+  if (output) await writeFile(resolve(output), `${JSON.stringify(analysis, null, 2)}\n`, "utf8");
+  console.log(JSON.stringify(analysis, null, 2));
+}
+
 async function main(): Promise<void> {
   const [command = "help", ...args] = process.argv.slice(2);
   if (command === "run") await runCommand(args);
   else if (command === "summarize") await summarizeCommand(args);
+  else if (command === "judge") await judgeCommand(args);
+  else if (command === "analyze") await analyzeCommand(args);
   else if (command === "help" || command === "--help") printHelp();
   else throw new Error(`Unknown command: ${command}`);
 }
