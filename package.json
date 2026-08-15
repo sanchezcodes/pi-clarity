@@ -1,8 +1,16 @@
 {
-  "name": "pi-clarify-eval",
+  "name": "pi-clarify",
   "version": "0.1.0",
-  "private": true,
+  "description": "Model-aware response-presentation contracts for Pi",
+  "keywords": [
+    "pi-package"
+  ],
   "type": "module",
+  "pi": {
+    "extensions": [
+      "./extensions/clarity.ts"
+    ]
+  },
   "scripts": {
     "run": "tsx src/cli.ts run",
     "summarize": "tsx src/cli.ts summarize",
@@ -12,7 +20,11 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test"
   },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.2",
     "@types/node": "^22.15.0",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0"
