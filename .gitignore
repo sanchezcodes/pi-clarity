@@ -3,5 +3,9 @@ node_modules/
 .env.*
 !.env.example
 results/raw/
+results/judgments/
+results/*.json
+results/*.log
+results/*.stdout.json
 *.log
 .DS_Store
