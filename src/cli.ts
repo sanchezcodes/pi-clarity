@@ -19,6 +19,7 @@ import {
   executeJudgment,
   judgmentExists,
   loadJudgments,
+  matchesModelFilter,
   type JudgePair,
   type Stage,
 } from "./judge.js";
@@ -74,7 +75,7 @@ Commands:
   npm run analyze -- [options]
 
 Run options:
-  --models <provider/model,...>  Matrix targets (repeatable)
+  --models <provider/model,...>  Matrix targets, always fully qualified (repeatable)
   --variants <id,...>           Filter prompt filenames without .md
   --cases <id,...>              Filter case IDs
   --languages <lang,...>        Filter languages (for example en,es)
@@ -94,7 +95,10 @@ Summarize options:
   --output <path>               Also write summary JSON to this path
 
 Judge options (blinded pairwise candidate vs control):
-  --models/--variants/--cases/--languages/--categories  Pair filters
+  --models <provider/model|model|provider,...>  Pair filter; a fully qualified
+                                target such as cliproxy-codex/gpt-5.6-sol works,
+                                as does a bare model or provider (repeatable)
+  --variants/--cases/--languages/--categories   Pair filters
   --repetitions <n>             Judge only repetitions 1..n
   --results-dir <path>          Default: results/raw
   --judgments-dir <path>        Default: results/judgments
@@ -113,7 +117,10 @@ Analyze options:
 
 Judging is cross-model (claude-opus-5 judges gpt-5.6-sol outputs and vice versa),
 blinded, and run in both A/B orders; only order-consistent preferences count.
-Acceptance bars are frozen in reports/preregistration.md.
+Acceptance bars are frozen in reports/preregistration.md and, for the refined
+candidate, reports/preregistration-v2.md. Judge prompt exploratory-2 scopes flags
+to each response; judgments recorded under exploratory-1 keep unscoped flags,
+which analysis reports as audit notes only, never as candidate evidence.
 
 The runner uses '--mode json' rather than '-p' because Pi's JSON event stream
 contains the authoritative final message plus provider-reported usage metadata.
@@ -229,7 +236,7 @@ function matchesPairFilters(pair: JudgePair, filters: {
   categories?: string[] | undefined;
   maxRepetition?: number | undefined;
 }): boolean {
-  return matchesFilter(pair.model, filters.models)
+  return matchesModelFilter(pair.provider, pair.model, filters.models)
     && matchesFilter(pair.variantId, filters.variants)
     && matchesFilter(pair.caseId, filters.cases)
     && matchesFilter(pair.language, filters.languages)

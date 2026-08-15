@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   CROSS_JUDGE,
+  JUDGE_PROMPT_VERSION,
   buildAnalysis,
   buildJudgePrompt,
   buildJudgeTasks,
@@ -10,10 +14,15 @@ import {
   candidateSlot,
   judgeTargetFor,
   judgmentIdFor,
+  loadJudgments,
+  matchesModelFilter,
+  normalizeJudgment,
   parseJudgeVerdict,
+  readVerdictFlags,
   reconcilePairs,
   wilsonInterval,
   type JudgePair,
+  type JudgeVerdict,
   type Judgment,
   type ReadabilityLabel,
 } from "./judge.js";
@@ -104,20 +113,28 @@ function judgment(overrides: {
   candidateGate?: "PASS" | "FAIL";
   controlGate?: "PASS" | "FAIL";
   pair?: JudgePair;
-  flags?: string[];
+  candidateFlags?: string[];
+  controlFlags?: string[];
+  unscopedFlags?: string[];
+  promptVersion?: string;
 }): Judgment {
   const pair = overrides.pair ?? pairOf();
   const candidateGate = overrides.candidateGate ?? "PASS";
   const controlGate = overrides.controlGate ?? "PASS";
   const gate = (verdict: "PASS" | "FAIL"): { correctness: "PASS" | "FAIL"; completion: "PASS" | "FAIL" } =>
     ({ correctness: verdict, completion: verdict });
+  const candidateFlags = overrides.candidateFlags ?? [];
+  const controlFlags = overrides.controlFlags ?? [];
   const gates = overrides.slot === "A"
     ? { A: gate(candidateGate), B: gate(controlGate) }
     : { A: gate(controlGate), B: gate(candidateGate) };
+  const flags = overrides.slot === "A"
+    ? { A: candidateFlags, B: controlFlags }
+    : { A: controlFlags, B: candidateFlags };
   return {
     schemaVersion: 1,
     judgmentId: `${pair.pairKey}-${overrides.round}`,
-    promptVersion: "exploratory-1",
+    promptVersion: overrides.promptVersion ?? JUDGE_PROMPT_VERSION,
     createdAt: "2026-01-01T00:00:00.000Z",
     status: "succeeded",
     pair,
@@ -131,7 +148,8 @@ function judgment(overrides: {
       readability: overrides.readability === undefined ? "tie" : overrides.readability,
       confidence: "medium",
       rationale: "because",
-      flags: overrides.flags ?? [],
+      flags,
+      unscopedFlags: overrides.unscopedFlags ?? [],
     },
     parseError: null,
     rawText: "",
@@ -225,7 +243,7 @@ test("verdict parsing accepts a fenced object followed by prose and rejects garb
     "Reasoning about both responses.",
     "```json",
     '{"gates":{"A":{"correctness":"PASS","completion":"pass"},"B":{"correctness":"FAIL","completion":"PASS"}},',
-    '"readability":null,"confidence":"high","rationale":"A is accurate","flags":["truncated_output"]}',
+    '"readability":null,"confidence":"high","rationale":"A is accurate","flags":{"A":[],"B":["truncated_output"]}}',
     "```",
     "Trailing note.",
   ].join("\n"));
@@ -233,7 +251,8 @@ test("verdict parsing accepts a fenced object followed by prose and rejects garb
   assert.equal(verdict.gates.A.completion, "PASS");
   assert.equal(verdict.gates.B.correctness, "FAIL");
   assert.equal(verdict.readability, null);
-  assert.deepEqual(verdict.flags, ["truncated_output"]);
+  assert.deepEqual(verdict.flags, { A: [], B: ["truncated_output"] });
+  assert.deepEqual(verdict.unscopedFlags, []);
 
   const invalid = parseJudgeVerdict("no verdict here");
   assert.equal(invalid.verdict, null);
@@ -365,14 +384,123 @@ test("token inflation and catastrophic flags are enforced against the preregiste
     controlRunId: control.runId,
   });
   judgments.push(
-    judgment({ round: 0, slot: "A", readability: "A_clearly_better", pair, flags: ["fabricated_tool_use"] }),
+    judgment({ round: 0, slot: "A", readability: "A_clearly_better", pair, candidateFlags: ["fabricated_tool_use"] }),
     judgment({ round: 1, slot: "B", readability: "B_clearly_better", pair }),
   );
   const analysis = buildAnalysis({ results, judgments, stage: "stageA" });
   const acceptance = analysis.acceptance.find((row) => row.variantId === "strong");
-  assert.equal(acceptance?.status, "reject", "a catastrophic flag blocks regardless of win rate");
-  assert.ok(acceptance?.failures.some((failure) => failure.includes("catastrophic-flag")));
+  assert.equal(acceptance?.status, "reject", "a candidate-attributed catastrophic flag blocks regardless of win rate");
+  assert.ok(acceptance?.failures.some((failure) => failure.includes("candidate-attributed catastrophic-flag")));
   assert.ok(acceptance?.failures.some((failure) => failure.includes("median output tokens")));
+});
+
+test("judge prompt version is incremented and asks for slot-scoped flags", () => {
+  assert.equal(JUDGE_PROMPT_VERSION, "exploratory-2");
+  const prompt = buildJudgePrompt({
+    caseInfo: { prompt: "", expectations: [], presentation: [] },
+    casePrompt: "Explain caching",
+    language: "en",
+    outputs: {
+      A: { outputId: "out-1", text: "first", workspace: "" },
+      B: { outputId: "out-2", text: "second", workspace: "" },
+    },
+  });
+  assert.ok(prompt.includes('"flags": {'), "schema must scope flags per response");
+  assert.ok(prompt.includes("Put each flag under the response it describes"));
+  assert.ok(!/"flags": \[/.test(prompt), "the unscoped array schema must be gone");
+});
+
+test("a flag on the control response never blocks the candidate", () => {
+  const control = run({ variantId: "control" });
+  const candidate = run({ variantId: "strong" });
+  const pair = pairOf({
+    variantId: "strong",
+    pairKey: "p|en|1|strong",
+    candidateRunId: candidate.runId,
+    controlRunId: control.runId,
+  });
+  const [reconciled] = reconcilePairs([
+    judgment({ round: 0, slot: "A", readability: "A_clearly_better", pair, controlFlags: ["fabricated_tool_use"] }),
+    judgment({ round: 1, slot: "B", readability: "B_clearly_better", pair, controlFlags: ["fabricated_tool_use"] }),
+  ]);
+  assert.deepEqual(reconciled?.candidateFlags, []);
+  assert.deepEqual(reconciled?.controlFlags, ["fabricated_tool_use"]);
+  assert.equal(reconciled?.catastrophic, false);
+
+  const analysis = buildAnalysis({
+    results: [control, candidate],
+    judgments: [
+      judgment({ round: 0, slot: "A", readability: "A_clearly_better", pair, controlFlags: ["fabricated_tool_use"] }),
+      judgment({ round: 1, slot: "B", readability: "B_clearly_better", pair, controlFlags: ["fabricated_tool_use"] }),
+    ],
+    stage: "stageA",
+  });
+  const acceptance = analysis.acceptance.find((row) => row.variantId === "strong");
+  assert.notEqual(acceptance?.status, "reject");
+  assert.ok(acceptance?.notes.some((note) => note.includes("flagged the control response")));
+  assert.equal(analysis.flagAudit[0]?.blocking, false);
+  assert.deepEqual(analysis.flagAudit[0]?.controlFlags, ["fabricated_tool_use"]);
+});
+
+test("legacy unscoped flags are audit notes, never candidate-specific blocking evidence", () => {
+  const control = run({ variantId: "control" });
+  const candidate = run({ variantId: "strong" });
+  const pair = pairOf({
+    variantId: "strong",
+    pairKey: "p|en|1|strong",
+    candidateRunId: candidate.runId,
+    controlRunId: control.runId,
+  });
+  const legacy = (round: 0 | 1, slot: "A" | "B", readability: ReadabilityLabel): Judgment => {
+    const base = judgment({ round, slot, readability, pair, promptVersion: "exploratory-1" });
+    // Legacy shape on disk: one unscoped array with no slot attribution.
+    return { ...base, verdict: { ...base.verdict, flags: ["fabricated_tool_use"] } as unknown as JudgeVerdict };
+  };
+  const judgments = [legacy(0, "A", "A_clearly_better"), legacy(1, "B", "B_clearly_better")].map(normalizeJudgment);
+
+  const [reconciled] = reconcilePairs(judgments);
+  assert.deepEqual(reconciled?.candidateFlags, []);
+  assert.deepEqual(reconciled?.unscopedFlags, ["fabricated_tool_use"]);
+  assert.equal(reconciled?.catastrophic, false, "an unattributed flag cannot block the candidate");
+  assert.equal(reconciled?.unattributedCatastrophic, true);
+  assert.equal(reconciled?.outcome, "win", "the readability result is unaffected");
+
+  const analysis = buildAnalysis({ results: [control, candidate], judgments, stage: "stageA" });
+  const acceptance = analysis.acceptance.find((row) => row.variantId === "strong");
+  assert.notEqual(acceptance?.status, "reject");
+  assert.ok(acceptance?.notes.some((note) => note.includes("unattributed catastrophic flags")));
+  assert.deepEqual(analysis.flagAudit[0]?.unscopedFlags, ["fabricated_tool_use"]);
+  assert.equal(analysis.flagAudit[0]?.blocking, false);
+  assert.deepEqual(analysis.coverage.judgePromptVersions, [
+    { promptVersion: "exploratory-1", judgments: 2, scopedFlags: false },
+  ]);
+});
+
+test("readVerdictFlags and loadJudgments read legacy files without rewriting them", async () => {
+  assert.deepEqual(readVerdictFlags(null), { A: [], B: [], unscoped: [] });
+
+  const directory = await mkdtemp(join(tmpdir(), "pi-clarify-judgments-"));
+  const legacy = judgment({ round: 0, slot: "A", readability: "A_clearly_better", promptVersion: "exploratory-1" });
+  const onDisk = JSON.stringify({ ...legacy, verdict: { ...legacy.verdict, flags: ["identity_leakage"] } }, null, 2);
+  const path = join(directory, "legacy.json");
+  await writeFile(path, onDisk, "utf8");
+
+  const [loaded] = await loadJudgments(directory);
+  assert.deepEqual(loaded?.verdict?.flags, { A: [], B: [] });
+  assert.deepEqual(loaded?.verdict?.unscopedFlags, ["identity_leakage"]);
+  assert.equal(loaded?.promptVersion, "exploratory-1");
+  assert.equal(await readFile(path, "utf8"), onDisk, "stored judgments must not be rewritten");
+});
+
+test("model filters accept fully qualified targets, bare models, and providers", () => {
+  assert.equal(matchesModelFilter("cliproxy-codex", "gpt-5.6-sol", ["cliproxy-codex/gpt-5.6-sol"]), true);
+  assert.equal(matchesModelFilter("cliproxy-codex", "gpt-5.6-sol", ["gpt-5.6-sol"]), true);
+  assert.equal(matchesModelFilter("cliproxy-codex", "gpt-5.6-sol", ["cliproxy-codex"]), true);
+  assert.equal(matchesModelFilter("cliproxy-codex", "gpt-5.6-sol", ["gpt-5.6"]), true, "substring still works");
+  assert.equal(matchesModelFilter("cliproxy-codex", "gpt-5.6-sol", ["cliproxy-claude/claude-opus-5"]), false);
+  assert.equal(matchesModelFilter("cliproxy-claude", "claude-opus-5", ["cliproxy-codex/gpt-5.6-sol"]), false);
+  assert.equal(matchesModelFilter("cliproxy-codex", "gpt-5.6-sol", undefined), true);
+  assert.equal(matchesModelFilter("cliproxy-codex", "gpt-5.6-sol", []), true);
 });
 
 test("multi-turn pairs are provisional and excluded from pooled decisions", () => {

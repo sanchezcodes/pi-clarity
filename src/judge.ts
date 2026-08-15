@@ -17,7 +17,14 @@ import { computePresentationMetrics, meanMetricsDelta, median, percentChange, pe
 import { parsePiOutput } from "./runner.js";
 import type { EvaluationSuite, ModelTarget, RunResult, Usage } from "./types.js";
 
-export const JUDGE_PROMPT_VERSION = "exploratory-1";
+/**
+ * exploratory-1 asked for a single top-level `flags` array, so a flag could not be
+ * attributed to the candidate or the control. exploratory-2 scopes flags to the A and B
+ * slots. Judgments written by exploratory-1 keep their unscoped flags as audit notes and
+ * are never used as candidate-specific blocking evidence (reports/preregistration-v2.md).
+ */
+export const JUDGE_PROMPT_VERSION = "exploratory-2";
+export const LEGACY_UNSCOPED_FLAG_VERSIONS = ["exploratory-1"];
 export const CONTROL_VARIANT_ID = "control";
 
 /** Cross-judging map (preregistration §2): a model never judges its own outputs. */
@@ -79,7 +86,23 @@ export interface JudgeVerdict {
   readability: ReadabilityLabel | null;
   confidence: "low" | "medium" | "high";
   rationale: string;
-  flags: string[];
+  /** Flags attributed to a specific response slot. Only these can block a candidate. */
+  flags: Record<"A" | "B", string[]>;
+  /** Flags with no slot attribution (legacy exploratory-1 output). Audit notes only. */
+  unscopedFlags: string[];
+}
+
+/** Tolerates the legacy unscoped shape without rewriting stored judgments. */
+export function readVerdictFlags(verdict: JudgeVerdict | null): { A: string[]; B: string[]; unscoped: string[] } {
+  if (!verdict) return { A: [], B: [], unscoped: [] };
+  const raw = verdict.flags as unknown;
+  if (Array.isArray(raw)) return { A: [], B: [], unscoped: [...raw.map(String), ...(verdict.unscopedFlags ?? [])] };
+  const scoped = (raw ?? {}) as Partial<Record<"A" | "B", unknown>>;
+  return {
+    A: Array.isArray(scoped.A) ? scoped.A.map(String) : [],
+    B: Array.isArray(scoped.B) ? scoped.B.map(String) : [],
+    unscoped: verdict.unscopedFlags ?? [],
+  };
 }
 
 export interface JudgePair {
@@ -262,6 +285,7 @@ Rules:
 - Do not reward decorative structure on a short request, and do not reward brevity that drops requested substance.
 - The response language must match the user's language (this case is '${language}').
 - Use UNJUDGEABLE only when the response is empty, truncated, or unreadable.
+- Every flag you raise must name the response it describes. Never report a flag without saying which response it applies to.
 
 ## User request
 
@@ -297,11 +321,14 @@ Think first, then output exactly one JSON object as the last thing in your reply
   "readability": "A_clearly_better|A_slightly_better|tie|B_slightly_better|B_clearly_better|null",
   "confidence": "low|medium|high",
   "rationale": "two sentences of evidence, quoting or naming what decided it",
-  "flags": ["fabricated_tool_use", "unauthorized_file_change", "identity_leakage", "truncated_output"]
+  "flags": {
+    "A": ["fabricated_tool_use", "unauthorized_file_change", "identity_leakage", "truncated_output"],
+    "B": []
+  }
 }
 \`\`\`
 
-"A" and "B" in the JSON refer to the first and second responses shown above, in that order. Use an empty array when no flag applies.`;
+"A" and "B" in the JSON refer to the first and second responses shown above, in that order, including inside "flags". Put each flag under the response it describes; repeat it under both only when both responses show it. Use empty arrays when no flag applies.`;
 }
 
 export function buildJudgeTasks(input: {
@@ -405,7 +432,15 @@ export function parseJudgeVerdict(text: string): { verdict: JudgeVerdict | null;
     ? (readabilityRaw as ReadabilityLabel)
     : null;
   const confidenceRaw = typeof parsed.confidence === "string" ? parsed.confidence.toLowerCase() : "";
-  const flags = Array.isArray(parsed.flags) ? parsed.flags.map(String).filter(Boolean) : [];
+  const rawFlags = parsed.flags;
+  const slotFlags = (slot: "A" | "B"): string[] => {
+    const value = rawFlags && !Array.isArray(rawFlags) && typeof rawFlags === "object"
+      ? (rawFlags as Record<string, unknown>)[slot]
+      : undefined;
+    return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+  };
+  // An array here means the judge ignored the scoped schema: keep it, but unattributed.
+  const unscopedFlags = Array.isArray(rawFlags) ? rawFlags.map(String).filter(Boolean) : [];
   return {
     verdict: {
       gates: {
@@ -415,7 +450,8 @@ export function parseJudgeVerdict(text: string): { verdict: JudgeVerdict | null;
       readability,
       confidence: confidenceRaw === "high" || confidenceRaw === "medium" ? confidenceRaw : "low",
       rationale: typeof parsed.rationale === "string" ? parsed.rationale : "",
-      flags,
+      flags: { A: slotFlags("A"), B: slotFlags("B") },
+      unscopedFlags,
     },
     parseError: null,
   };
@@ -530,9 +566,37 @@ export async function loadJudgments(judgmentsDir: string): Promise<Judgment[]> {
   const judgments: Judgment[] = [];
   for (const name of names.filter((item) => item.endsWith(".json")).sort()) {
     const value = JSON.parse(await readFile(join(judgmentsDir, name), "utf8")) as Judgment;
-    if (value.schemaVersion === 1 && value.judgmentId && value.pair) judgments.push(value);
+    if (value.schemaVersion === 1 && value.judgmentId && value.pair) judgments.push(normalizeJudgment(value));
   }
   return judgments;
+}
+
+/**
+ * Reads legacy judgments without rewriting them on disk: an unscoped `flags` array from
+ * judge prompt exploratory-1 becomes `unscopedFlags`, and the scoped slots stay empty.
+ */
+export function normalizeJudgment(judgment: Judgment): Judgment {
+  if (!judgment.verdict) return judgment;
+  const flags = readVerdictFlags(judgment.verdict);
+  return {
+    ...judgment,
+    verdict: {
+      ...judgment.verdict,
+      flags: { A: flags.A, B: flags.B },
+      unscopedFlags: flags.unscoped,
+    },
+  };
+}
+
+/**
+ * Matches a run against a `--models` filter entry given as `provider/model`, a bare model,
+ * a bare provider, or a substring of the qualified target.
+ */
+export function matchesModelFilter(provider: string, model: string, filter: string[] | undefined): boolean {
+  if (!filter?.length) return true;
+  const qualified = `${provider}/${model}`;
+  return filter.some((entry) =>
+    entry === qualified || entry === model || entry === provider || qualified.includes(entry));
 }
 
 export type PairCombined = "PASS" | "FAIL" | "INCONSISTENT" | "UNKNOWN";
@@ -553,8 +617,13 @@ export interface ReconciledPair {
   candidate: PairCombined;
   control: PairCombined;
   outcome: PairOutcome;
-  flags: string[];
+  candidateFlags: string[];
+  controlFlags: string[];
+  /** Unattributed legacy flags: reported for audit, never blocking evidence. */
+  unscopedFlags: string[];
+  promptVersions: string[];
   catastrophic: boolean;
+  unattributedCatastrophic: boolean;
   lengthDeltaChars: number;
 }
 
@@ -583,12 +652,23 @@ export function reconcilePairs(judgments: Judgment[]): ReconciledPair[] {
     const rounds = [0, 1].map((round) => group.find((item) => item.round === round && item.verdict));
     const usable = rounds.filter((item): item is Judgment => Boolean(item));
     const first = group[0]!;
-    const flags = [...new Set(usable.flatMap((item) => item.verdict?.flags ?? []))];
+    const attributed = usable.map((item) => {
+      const flags = readVerdictFlags(item.verdict);
+      const controlSlot = item.candidateSlot === "A" ? "B" : "A";
+      return { candidate: flags[item.candidateSlot], control: flags[controlSlot], unscoped: flags.unscoped };
+    });
+    const candidateFlags = [...new Set(attributed.flatMap((item) => item.candidate))];
+    const controlFlags = [...new Set(attributed.flatMap((item) => item.control))];
+    const unscopedFlags = [...new Set(attributed.flatMap((item) => item.unscoped))];
     const base = {
       pair: first.pair,
       rounds: usable.length,
-      flags,
-      catastrophic: flags.some((flag) => CATASTROPHIC_FLAG.test(flag)),
+      candidateFlags,
+      controlFlags,
+      unscopedFlags,
+      promptVersions: [...new Set(group.map((item) => item.promptVersion))].sort(),
+      catastrophic: candidateFlags.some((flag) => CATASTROPHIC_FLAG.test(flag)),
+      unattributedCatastrophic: unscopedFlags.some((flag) => CATASTROPHIC_FLAG.test(flag)),
       lengthDeltaChars: first.lengthDeltaChars,
     };
     if (usable.length < 2) {
@@ -824,7 +904,17 @@ function evaluateAcceptance(input: {
   if (multiTurn) notes.push(`${multiTurn} multi-turn pairs reported separately and excluded from pooled decisions (provisional harness)`);
 
   const catastrophic = scored.filter((pair) => pair.catastrophic);
-  if (catastrophic.length) blocking.push(`${catastrophic.length} catastrophic-flag pair(s): ${[...new Set(catastrophic.map((pair) => pair.pair.caseId))].join(", ")}`);
+  if (catastrophic.length) {
+    blocking.push(`${catastrophic.length} candidate-attributed catastrophic-flag pair(s): ${[...new Set(catastrophic.map((pair) => pair.pair.caseId))].join(", ")}`);
+  }
+  const unattributed = scored.filter((pair) => pair.unattributedCatastrophic);
+  if (unattributed.length) {
+    notes.push(`${unattributed.length} pair(s) carry unattributed catastrophic flags from an unscoped judge prompt (${[...new Set(unattributed.map((pair) => pair.pair.caseId))].join(", ")}); recorded as audit notes only, per reports/preregistration-v2.md`);
+  }
+  const controlFlagged = scored.filter((pair) => pair.controlFlags.some((flag) => CATASTROPHIC_FLAG.test(flag)));
+  if (controlFlagged.length) {
+    notes.push(`${controlFlagged.length} pair(s) flagged the control response, not the candidate: ${[...new Set(controlFlagged.map((pair) => pair.pair.caseId))].join(", ")}`);
+  }
   if (input.languageFidelityFailures.length) {
     blocking.push(`language fidelity failures: ${input.languageFidelityFailures.join(", ")}`);
   }
@@ -941,7 +1031,19 @@ export interface Analysis {
     judgments: number;
     failedJudgments: number;
     unparsedJudgments: number;
+    judgePromptVersions: Array<{ promptVersion: string; judgments: number; scopedFlags: boolean }>;
   };
+  flagAudit: Array<{
+    variantId: string;
+    caseId: string;
+    model: string;
+    repetition: number;
+    promptVersions: string[];
+    candidateFlags: string[];
+    controlFlags: string[];
+    unscopedFlags: string[];
+    blocking: boolean;
+  }>;
   gateRates: GateRate[];
   pairwise: PairwiseStats[];
   operational: OperationalRow[];
@@ -1051,7 +1153,25 @@ export function buildAnalysis(input: {
       judgments: judgments.length,
       failedJudgments: judgments.filter((judgment) => judgment.status === "failed").length,
       unparsedJudgments: judgments.filter((judgment) => !judgment.verdict).length,
+      judgePromptVersions: [...new Set(judgments.map((judgment) => judgment.promptVersion))].sort().map((promptVersion) => ({
+        promptVersion,
+        judgments: judgments.filter((judgment) => judgment.promptVersion === promptVersion).length,
+        scopedFlags: !LEGACY_UNSCOPED_FLAG_VERSIONS.includes(promptVersion),
+      })),
     },
+    flagAudit: reconciled
+      .filter((pair) => pair.candidateFlags.length || pair.controlFlags.length || pair.unscopedFlags.length)
+      .map((pair) => ({
+        variantId: pair.pair.variantId,
+        caseId: pair.pair.caseId,
+        model: pair.pair.model,
+        repetition: pair.pair.repetition,
+        promptVersions: pair.promptVersions,
+        candidateFlags: pair.candidateFlags,
+        controlFlags: pair.controlFlags,
+        unscopedFlags: pair.unscopedFlags,
+        blocking: pair.catastrophic,
+      })),
     gateRates: rates,
     pairwise,
     operational,
