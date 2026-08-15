@@ -1,0 +1,513 @@
+{
+  "schema_version": "1.0",
+  "suite_id": "pi-readability-bilingual-v1",
+  "purpose": "Evaluate whether an always-on appended system prompt improves response readability without degrading normal assistant behavior.",
+  "design_notes": [
+    "Cases are independent of candidate prompt wording and may be run against a no-added-prompt control or any blinded candidate.",
+    "English and Spanish cases are paired by scenario and intended to test equivalent capabilities, not exact translation matching.",
+    "Correctness and task completion are hard gates; presentation quality cannot compensate for a gate failure.",
+    "Unless a case explicitly asks for a format, the assistant is free to choose the representation that best serves the task."
+  ],
+  "cases": [
+    {
+      "id": "simple-answer-en",
+      "pair_id": "simple-answer",
+      "language": "en",
+      "category": "simple_answer",
+      "execution_mode": "single_turn",
+      "prompt": "What is the difference between a comet and an asteroid? Keep it brief.",
+      "hard_gate_expectations": [
+        "Explains that comets are generally richer in ice and dust while asteroids are generally rockier or more metallic.",
+        "Notes that comets can form a coma or tail when heated near the Sun.",
+        "Does not present the distinction as absolute in every observed case.",
+        "Respects the request for brevity."
+      ],
+      "presentation_observations": [
+        "Answers directly without a long preamble.",
+        "Uses only as much structure as the short answer needs.",
+        "Avoids restating the same distinction in a conclusion."
+      ]
+    },
+    {
+      "id": "simple-answer-es",
+      "pair_id": "simple-answer",
+      "language": "es",
+      "category": "simple_answer",
+      "execution_mode": "single_turn",
+      "prompt": "¿Cuál es la diferencia entre un cometa y un asteroide? Sé breve.",
+      "hard_gate_expectations": [
+        "Explica que los cometas suelen contener más hielo y polvo, mientras que los asteroides suelen ser más rocosos o metálicos.",
+        "Indica que los cometas pueden formar una coma o cola al calentarse cerca del Sol.",
+        "No presenta la distinción como absoluta para todos los objetos observados.",
+        "Respeta la petición de brevedad."
+      ],
+      "presentation_observations": [
+        "Responde de forma directa, sin una introducción larga.",
+        "Usa solo la estructura necesaria para una respuesta corta.",
+        "No repite la misma diferencia en una conclusión."
+      ]
+    },
+    {
+      "id": "high-tech-non-phd-en",
+      "pair_id": "high-tech-non-phd",
+      "language": "en",
+      "category": "technical_explanation",
+      "execution_mode": "single_turn",
+      "prompt": "Explain how retrieval-augmented generation (RAG) works to a software product manager who can read technical documentation but does not have a machine-learning PhD. Cover the request flow, what retrieval adds, and the main failure modes.",
+      "hard_gate_expectations": [
+        "Describes a flow that includes receiving a query, retrieving relevant material, placing selected context into the model input, and generating an answer.",
+        "Distinguishes retrieval from model training or permanent model memory.",
+        "Covers important failure modes such as poor source coverage, retrieval/ranking errors, stale or conflicting sources, insufficient context, and unsupported generation.",
+        "Does not claim that RAG guarantees factual answers."
+      ],
+      "presentation_observations": [
+        "Defines specialized terms at first use or makes them understandable from context.",
+        "Uses a concrete example or compact flow representation if it aids comprehension.",
+        "Provides enough technical substance without assuming research-level ML knowledge."
+      ]
+    },
+    {
+      "id": "high-tech-non-phd-es",
+      "pair_id": "high-tech-non-phd",
+      "language": "es",
+      "category": "technical_explanation",
+      "execution_mode": "single_turn",
+      "prompt": "Explica cómo funciona la generación aumentada por recuperación (RAG) a una gerente de producto de software que puede leer documentación técnica, pero no tiene un doctorado en aprendizaje automático. Cubre el flujo de una solicitud, qué aporta la recuperación y los principales modos de fallo.",
+      "hard_gate_expectations": [
+        "Describe un flujo que incluye recibir una consulta, recuperar material relevante, incluir el contexto seleccionado en la entrada del modelo y generar una respuesta.",
+        "Distingue la recuperación del entrenamiento o de una memoria permanente del modelo.",
+        "Cubre fallos importantes como fuentes incompletas, errores de recuperación o ranking, fuentes obsoletas o contradictorias, contexto insuficiente y generación sin respaldo.",
+        "No afirma que RAG garantice respuestas correctas."
+      ],
+      "presentation_observations": [
+        "Define los términos especializados al usarlos por primera vez o los hace comprensibles por contexto.",
+        "Usa un ejemplo concreto o una representación compacta del flujo si ayuda a comprenderlo.",
+        "Aporta suficiente contenido técnico sin asumir conocimientos de investigación en ML."
+      ]
+    },
+    {
+      "id": "long-form-depth-en",
+      "pair_id": "long-form-depth",
+      "language": "en",
+      "category": "long_form",
+      "execution_mode": "single_turn",
+      "prompt": "Write a detailed guide for a small SaaS team deciding whether to build multi-tenancy with a shared database/shared schema, shared database/separate schemas, or separate databases. Explain trade-offs in isolation, cost, operations, migrations, observability, and compliance; describe when each option fits; and finish with a decision process rather than a universal recommendation.",
+      "hard_gate_expectations": [
+        "Accurately explains all three tenancy patterns.",
+        "Addresses isolation, cost, operations, migrations, observability, and compliance for each relevant option.",
+        "Acknowledges that terminology and database support for schemas vary by platform.",
+        "Ends with a usable decision process and does not claim one design is universally best.",
+        "Provides the requested long-form depth rather than compressing the answer into a shallow summary."
+      ],
+      "presentation_observations": [
+        "Uses a clear progression from concepts to trade-offs to decision process.",
+        "Makes cross-option comparisons easy to locate.",
+        "Uses headings, tables, or lists only where they improve navigation.",
+        "Avoids repeating the same trade-off in multiple sections without adding value."
+      ]
+    },
+    {
+      "id": "long-form-depth-es",
+      "pair_id": "long-form-depth",
+      "language": "es",
+      "category": "long_form",
+      "execution_mode": "single_turn",
+      "prompt": "Escribe una guía detallada para un equipo pequeño de SaaS que debe elegir entre multitenencia con base de datos y esquema compartidos, base de datos compartida con esquemas separados, o bases de datos separadas. Explica las ventajas y desventajas respecto al aislamiento, coste, operaciones, migraciones, observabilidad y cumplimiento; indica cuándo encaja cada opción; y termina con un proceso de decisión, no con una recomendación universal.",
+      "hard_gate_expectations": [
+        "Explica correctamente los tres patrones de multitenencia.",
+        "Aborda aislamiento, coste, operaciones, migraciones, observabilidad y cumplimiento para cada opción relevante.",
+        "Reconoce que la terminología y el soporte de esquemas varían según la plataforma de base de datos.",
+        "Termina con un proceso de decisión utilizable y no afirma que un diseño sea siempre el mejor.",
+        "Ofrece la profundidad solicitada en lugar de reducir la respuesta a un resumen superficial."
+      ],
+      "presentation_observations": [
+        "Sigue una progresión clara desde conceptos hasta criterios de decisión.",
+        "Permite localizar fácilmente las comparaciones entre opciones.",
+        "Usa encabezados, tablas o listas solo cuando mejoran la navegación.",
+        "Evita repetir una misma desventaja en varias secciones sin aportar algo nuevo."
+      ]
+    },
+    {
+      "id": "coding-instructions-en",
+      "pair_id": "coding-instructions",
+      "language": "en",
+      "category": "coding",
+      "execution_mode": "single_turn",
+      "prompt": "Implement a TypeScript function `parsePort(value: string | undefined): number` for a Node.js service. Requirements: return 3000 when the value is undefined; otherwise accept only a base-10 integer from 1 through 65535; reject whitespace-only strings, decimals, signs, hexadecimal notation, and strings with trailing characters by throwing `Error('Invalid port')`. Show the implementation and focused tests.",
+      "hard_gate_expectations": [
+        "Provides TypeScript implementation and tests.",
+        "Returns 3000 only for undefined input.",
+        "Accepts decimal digit strings representing values from 1 through 65535 inclusive.",
+        "Rejects empty or whitespace-only input, decimals, plus or minus signs, hexadecimal notation, trailing characters, zero, and values above 65535 with the exact requested error message.",
+        "Does not rely on permissive partial parsing that violates the requirements."
+      ],
+      "presentation_observations": [
+        "Keeps explanation subordinate to the implementation and tests.",
+        "Makes key validation choices easy to verify.",
+        "Does not add unrelated framework setup or excessive boilerplate."
+      ]
+    },
+    {
+      "id": "coding-instructions-es",
+      "pair_id": "coding-instructions",
+      "language": "es",
+      "category": "coding",
+      "execution_mode": "single_turn",
+      "prompt": "Implementa una función de TypeScript `parsePort(value: string | undefined): number` para un servicio de Node.js. Requisitos: devuelve 3000 cuando el valor sea `undefined`; en cualquier otro caso acepta únicamente un entero decimal entre 1 y 65535; rechaza cadenas vacías o con solo espacios, decimales, signos, notación hexadecimal y texto sobrante lanzando `Error('Invalid port')`. Muestra la implementación y pruebas específicas.",
+      "hard_gate_expectations": [
+        "Proporciona una implementación en TypeScript y pruebas.",
+        "Devuelve 3000 únicamente cuando la entrada es undefined.",
+        "Acepta cadenas de dígitos decimales cuyos valores estén entre 1 y 65535, inclusive.",
+        "Rechaza entradas vacías o con solo espacios, decimales, signos, hexadecimal, caracteres sobrantes, cero y valores superiores a 65535 con el mensaje de error exacto.",
+        "No depende de un análisis parcial permisivo que incumpla los requisitos."
+      ],
+      "presentation_observations": [
+        "Mantiene la explicación subordinada a la implementación y las pruebas.",
+        "Permite verificar fácilmente las decisiones clave de validación.",
+        "No añade configuración de frameworks ni código repetitivo innecesario."
+      ]
+    },
+    {
+      "id": "tool-use-en",
+      "pair_id": "tool-use",
+      "language": "en",
+      "category": "tool_use",
+      "execution_mode": "agent_workspace",
+      "workspace_fixture": {
+        "files": {
+          "config/app.json": "{\n  \"serviceName\": \"ledger\",\n  \"timeoutMs\": 5000,\n  \"retries\": 2\n}\n",
+          "docs/operations.md": "# Operations\n\nThe ledger service retries failed upstream requests twice.\n"
+        }
+      },
+      "prompt": "Inspect `config/app.json`. Change only `timeoutMs` from 5000 to 8000, then update `docs/operations.md` with one short sentence stating the new timeout. Validate that the JSON still parses. Do not change any other values or create files. Report what you changed and the validation result.",
+      "hard_gate_expectations": [
+        "Uses workspace tools to inspect and edit the specified files.",
+        "Changes only timeoutMs in config/app.json from 5000 to 8000.",
+        "Adds one short sentence to docs/operations.md stating the 8000 ms timeout.",
+        "Validates config/app.json as parseable JSON.",
+        "Does not create files or alter serviceName, retries, or the existing documentation statement.",
+        "Reports the actual changes and validation result accurately."
+      ],
+      "presentation_observations": [
+        "Keeps the final report concise and action-oriented.",
+        "Separates changed items from validation when that improves scanning.",
+        "Does not let presentation advice interfere with tool execution."
+      ]
+    },
+    {
+      "id": "tool-use-es",
+      "pair_id": "tool-use",
+      "language": "es",
+      "category": "tool_use",
+      "execution_mode": "agent_workspace",
+      "workspace_fixture": {
+        "files": {
+          "config/app.json": "{\n  \"serviceName\": \"ledger\",\n  \"timeoutMs\": 5000,\n  \"retries\": 2\n}\n",
+          "docs/operations.md": "# Operaciones\n\nEl servicio ledger reintenta dos veces las solicitudes fallidas al sistema externo.\n"
+        }
+      },
+      "prompt": "Inspecciona `config/app.json`. Cambia únicamente `timeoutMs` de 5000 a 8000 y después actualiza `docs/operations.md` con una frase corta que indique el nuevo tiempo de espera. Valida que el JSON siga siendo válido. No cambies ningún otro valor ni crees archivos. Informa qué cambiaste y el resultado de la validación.",
+      "hard_gate_expectations": [
+        "Usa las herramientas del espacio de trabajo para inspeccionar y editar los archivos indicados.",
+        "Cambia únicamente timeoutMs en config/app.json de 5000 a 8000.",
+        "Añade una frase corta a docs/operations.md que indique el tiempo de espera de 8000 ms.",
+        "Valida que config/app.json se pueda analizar como JSON.",
+        "No crea archivos ni altera serviceName, retries o la afirmación existente en la documentación.",
+        "Informa con precisión los cambios reales y el resultado de la validación."
+      ],
+      "presentation_observations": [
+        "Mantiene el informe final conciso y orientado a las acciones.",
+        "Separa los cambios de la validación cuando eso mejora la lectura.",
+        "No permite que las pautas de presentación interfieran con el uso de herramientas."
+      ]
+    },
+    {
+      "id": "debugging-en",
+      "pair_id": "debugging",
+      "language": "en",
+      "category": "debugging",
+      "execution_mode": "single_turn",
+      "prompt": "A Node.js endpoint becomes slower over several hours. Heap usage rises steadily, and this module is on the hot path:\n\n```js\nconst cache = new Map();\n\nexport async function getUser(id) {\n  if (!cache.has(id)) {\n    cache.set(id, await fetchUser(id));\n  }\n  return cache.get(id);\n}\n```\n\nDiagnose the most likely issue, explain how you would confirm it, and propose a safe fix. Mention important trade-offs or edge cases.",
+      "hard_gate_expectations": [
+        "Identifies the unbounded module-level Map retaining entries as the leading memory-growth hypothesis.",
+        "Does not claim certainty from the snippet alone.",
+        "Proposes confirmation steps involving heap or allocation evidence and cache-size/traffic correlation.",
+        "Proposes a bounded or expiring cache, or another lifecycle-appropriate fix, rather than merely clearing at random.",
+        "Addresses relevant edge cases such as eviction behavior, stale data, concurrent misses, rejected promises or failed fetches, and per-process behavior where appropriate."
+      ],
+      "presentation_observations": [
+        "Clearly separates hypothesis, confirmation, and remediation.",
+        "Prioritizes the most likely cause before listing alternatives.",
+        "Avoids burying actionable diagnostic steps in generic debugging advice."
+      ]
+    },
+    {
+      "id": "debugging-es",
+      "pair_id": "debugging",
+      "language": "es",
+      "category": "debugging",
+      "execution_mode": "single_turn",
+      "prompt": "Un endpoint de Node.js se vuelve más lento después de varias horas. El uso del heap aumenta de forma continua y este módulo está en la ruta crítica:\n\n```js\nconst cache = new Map();\n\nexport async function getUser(id) {\n  if (!cache.has(id)) {\n    cache.set(id, await fetchUser(id));\n  }\n  return cache.get(id);\n}\n```\n\nDiagnostica el problema más probable, explica cómo lo confirmarías y propón una solución segura. Menciona decisiones importantes o casos límite.",
+      "hard_gate_expectations": [
+        "Identifica como hipótesis principal que el Map global sin límite retiene entradas y provoca crecimiento de memoria.",
+        "No afirma certeza basándose únicamente en el fragmento.",
+        "Propone confirmarlo con evidencia del heap o asignaciones y correlación entre tamaño de caché y tráfico.",
+        "Propone una caché limitada o con expiración, u otra solución adecuada al ciclo de vida, en vez de vaciarla arbitrariamente.",
+        "Aborda casos relevantes como expulsión, datos obsoletos, fallos simultáneos de caché, solicitudes fallidas y comportamiento por proceso cuando corresponda."
+      ],
+      "presentation_observations": [
+        "Separa claramente hipótesis, confirmación y corrección.",
+        "Prioriza la causa más probable antes de enumerar alternativas.",
+        "No oculta los pasos de diagnóstico útiles entre consejos genéricos."
+      ]
+    },
+    {
+      "id": "architecture-en",
+      "pair_id": "architecture",
+      "language": "en",
+      "category": "architecture",
+      "execution_mode": "single_turn",
+      "prompt": "Design a notification subsystem for a B2B application that sends email, SMS, and in-app notifications. It must support user preferences, tenant-specific templates, retries, provider failover, audit history, and at-least-once delivery from upstream events. Describe components, data flow, data ownership, failure handling, and the main design decisions. State assumptions instead of inventing missing scale requirements.",
+      "hard_gate_expectations": [
+        "Addresses every required capability: preferences, tenant templates, retries, provider failover, audit history, and at-least-once upstream delivery.",
+        "Explains idempotency or deduplication needed to handle duplicate events and retries.",
+        "Defines plausible component boundaries, data ownership, and end-to-end flow.",
+        "Discusses failure handling, observability, and durable state where needed.",
+        "States assumptions and does not fabricate precise traffic, latency, or compliance requirements."
+      ],
+      "presentation_observations": [
+        "Leads with a coherent architecture before diving into component details.",
+        "Keeps decisions and trade-offs distinct from factual flow description.",
+        "Uses a diagram only if it makes component interactions materially easier to understand."
+      ]
+    },
+    {
+      "id": "architecture-es",
+      "pair_id": "architecture",
+      "language": "es",
+      "category": "architecture",
+      "execution_mode": "single_turn",
+      "prompt": "Diseña un subsistema de notificaciones para una aplicación B2B que envía correo electrónico, SMS y notificaciones dentro de la aplicación. Debe admitir preferencias de usuario, plantillas específicas por tenant, reintentos, conmutación entre proveedores, historial de auditoría y entrega al menos una vez desde eventos externos. Describe componentes, flujo de datos, propiedad de los datos, tratamiento de fallos y las principales decisiones de diseño. Declara tus supuestos en lugar de inventar requisitos de escala que faltan.",
+      "hard_gate_expectations": [
+        "Aborda todas las capacidades requeridas: preferencias, plantillas por tenant, reintentos, conmutación de proveedores, auditoría y entrega al menos una vez.",
+        "Explica la idempotencia o deduplicación necesaria para manejar eventos y reintentos duplicados.",
+        "Define límites plausibles entre componentes, propiedad de datos y flujo completo.",
+        "Trata los fallos, la observabilidad y el estado duradero cuando son necesarios.",
+        "Declara supuestos y no inventa cifras precisas de tráfico, latencia o cumplimiento."
+      ],
+      "presentation_observations": [
+        "Presenta primero una arquitectura coherente y luego los detalles de componentes.",
+        "Distingue las decisiones y sus implicaciones de la descripción factual del flujo.",
+        "Usa un diagrama solo si facilita de forma material la comprensión de las interacciones."
+      ]
+    },
+    {
+      "id": "comparison-en",
+      "pair_id": "comparison",
+      "language": "en",
+      "category": "comparison",
+      "execution_mode": "single_turn",
+      "prompt": "Compare REST and GraphQL for an internal platform API used by several web and mobile teams. Evaluate client flexibility, schema evolution, caching, observability, authorization, performance risks, tooling, and operational complexity. Give conditional recommendations for three contexts: a simple CRUD service, a product UI with many changing views, and a public API with strong cacheability requirements.",
+      "hard_gate_expectations": [
+        "Provides a balanced and technically plausible comparison across all requested dimensions.",
+        "Avoids false absolutes such as claiming either approach is always faster, simpler, or more secure.",
+        "Gives a conditional recommendation for each of the three stated contexts.",
+        "Recognizes that implementation choices can matter as much as protocol style for authorization, performance, and observability."
+      ],
+      "presentation_observations": [
+        "Makes side-by-side differences easy to scan.",
+        "Preserves nuance rather than forcing every dimension into a simplistic winner/loser label.",
+        "Places recommendations after the comparison evidence."
+      ]
+    },
+    {
+      "id": "comparison-es",
+      "pair_id": "comparison",
+      "language": "es",
+      "category": "comparison",
+      "execution_mode": "single_turn",
+      "prompt": "Compara REST y GraphQL para una API de plataforma interna usada por varios equipos web y móviles. Evalúa flexibilidad del cliente, evolución del esquema, caché, observabilidad, autorización, riesgos de rendimiento, herramientas y complejidad operativa. Ofrece recomendaciones condicionales para tres contextos: un servicio CRUD sencillo, una interfaz de producto con muchas vistas cambiantes y una API pública con requisitos fuertes de almacenamiento en caché.",
+      "hard_gate_expectations": [
+        "Ofrece una comparación equilibrada y técnicamente plausible en todas las dimensiones solicitadas.",
+        "Evita afirmaciones absolutas falsas, como que una opción siempre sea más rápida, sencilla o segura.",
+        "Da una recomendación condicional para cada uno de los tres contextos.",
+        "Reconoce que las decisiones de implementación pueden importar tanto como el estilo de API para autorización, rendimiento y observabilidad."
+      ],
+      "presentation_observations": [
+        "Facilita examinar las diferencias en paralelo.",
+        "Conserva los matices en vez de forzar un ganador simplista para cada dimensión.",
+        "Presenta las recomendaciones después de la evidencia comparativa."
+      ]
+    },
+    {
+      "id": "diagram-useful-en",
+      "pair_id": "diagram-useful",
+      "language": "en",
+      "category": "representation_choice",
+      "execution_mode": "single_turn",
+      "prompt": "Explain the request path for a browser loading a personalized page through a CDN, load balancer, application service, cache, and database. Include cache-hit and cache-miss paths, and show where TLS terminates. Use any representation you think best clarifies the flow.",
+      "hard_gate_expectations": [
+        "Includes browser, CDN, load balancer, application service, cache, and database in a coherent request path.",
+        "Distinguishes cache-hit from cache-miss behavior.",
+        "Explicitly states a plausible TLS termination assumption and notes that deployment choices can differ.",
+        "Does not imply that personalized content is universally safe to cache without an appropriate cache key or policy."
+      ],
+      "presentation_observations": [
+        "Chooses a flow diagram or comparably effective representation because relationships and branching are central.",
+        "Explains the representation rather than leaving labels ambiguous.",
+        "Keeps the visual compact enough to follow."
+      ]
+    },
+    {
+      "id": "diagram-useful-es",
+      "pair_id": "diagram-useful",
+      "language": "es",
+      "category": "representation_choice",
+      "execution_mode": "single_turn",
+      "prompt": "Explica el recorrido de una solicitud cuando un navegador carga una página personalizada a través de una CDN, un balanceador de carga, un servicio de aplicación, una caché y una base de datos. Incluye los caminos cuando la caché acierta y falla, e indica dónde termina TLS. Usa la representación que consideres más clara para mostrar el flujo.",
+      "hard_gate_expectations": [
+        "Incluye navegador, CDN, balanceador, servicio de aplicación, caché y base de datos en un flujo coherente.",
+        "Distingue el comportamiento cuando la caché acierta y cuando falla.",
+        "Declara explícitamente un supuesto plausible sobre la terminación de TLS y reconoce que la implementación puede variar.",
+        "No implica que el contenido personalizado siempre pueda almacenarse en caché sin una clave o política adecuada."
+      ],
+      "presentation_observations": [
+        "Elige un diagrama de flujo o una representación igual de eficaz porque las relaciones y bifurcaciones son centrales.",
+        "Explica la representación en vez de dejar etiquetas ambiguas.",
+        "Mantiene el elemento visual lo bastante compacto para seguirlo."
+      ]
+    },
+    {
+      "id": "diagram-not-useful-en",
+      "pair_id": "diagram-not-useful",
+      "language": "en",
+      "category": "representation_choice",
+      "execution_mode": "single_turn",
+      "prompt": "Rewrite this status update so it is clear and professional: 'we shipped the billing fix yesterday, no new duplicate charges seen since, support is checking the 14 affected accounts and finance will confirm refunds by friday'. Preserve every fact and do not add new ones.",
+      "hard_gate_expectations": [
+        "Produces a rewritten status update rather than advice about writing one.",
+        "Preserves shipment timing, absence of newly observed duplicate charges, 14 affected accounts, Support's review, Finance's refund confirmation, and the Friday deadline.",
+        "Does not invent refund completion, root cause, customer impact, dates, or guarantees.",
+        "Uses clear and professional language."
+      ],
+      "presentation_observations": [
+        "Avoids a diagram, table, multi-section template, or other structure disproportionate to a short rewrite.",
+        "Returns the rewritten text directly with minimal framing.",
+        "Does not repeat the update in multiple formats."
+      ]
+    },
+    {
+      "id": "diagram-not-useful-es",
+      "pair_id": "diagram-not-useful",
+      "language": "es",
+      "category": "representation_choice",
+      "execution_mode": "single_turn",
+      "prompt": "Reescribe esta actualización para que sea clara y profesional: 'publicamos ayer la corrección de facturación, desde entonces no vimos nuevos cobros duplicados, soporte está revisando las 14 cuentas afectadas y finanzas confirmará los reembolsos antes del viernes'. Conserva todos los hechos y no añadas información nueva.",
+      "hard_gate_expectations": [
+        "Produce una actualización reescrita, no consejos sobre cómo escribirla.",
+        "Conserva el momento de publicación, la ausencia de nuevos cobros duplicados observados, las 14 cuentas afectadas, la revisión de Soporte, la confirmación de Finanzas y el plazo del viernes.",
+        "No inventa que los reembolsos ya terminaron, una causa raíz, impacto adicional, fechas ni garantías.",
+        "Usa lenguaje claro y profesional."
+      ],
+      "presentation_observations": [
+        "Evita diagramas, tablas, plantillas con varias secciones u otra estructura desproporcionada para una reescritura corta.",
+        "Devuelve directamente el texto reescrito con un marco mínimo.",
+        "No repite la actualización en varios formatos."
+      ]
+    },
+    {
+      "id": "ambiguity-en",
+      "pair_id": "ambiguity",
+      "language": "en",
+      "category": "ambiguity",
+      "execution_mode": "single_turn",
+      "prompt": "Update the deployment configuration to use the new region and make sure the old one is removed.",
+      "hard_gate_expectations": [
+        "Does not edit files or invent the new and old region values.",
+        "Asks for the missing region identifiers and enough configuration scope or file location to act safely.",
+        "Keeps the clarification focused on information required to proceed."
+      ],
+      "presentation_observations": [
+        "Surfaces the blocking ambiguity immediately.",
+        "Does not bury the questions under a speculative implementation plan.",
+        "Avoids unnecessary headings or a long checklist for a simple clarification."
+      ]
+    },
+    {
+      "id": "ambiguity-es",
+      "pair_id": "ambiguity",
+      "language": "es",
+      "category": "ambiguity",
+      "execution_mode": "single_turn",
+      "prompt": "Actualiza la configuración de despliegue para usar la región nueva y asegúrate de eliminar la anterior.",
+      "hard_gate_expectations": [
+        "No edita archivos ni inventa los valores de las regiones nueva y anterior.",
+        "Pregunta por los identificadores de región que faltan y por el alcance o la ubicación de la configuración necesaria para actuar con seguridad.",
+        "Limita la aclaración a la información necesaria para continuar."
+      ],
+      "presentation_observations": [
+        "Expone inmediatamente la ambigüedad que bloquea la tarea.",
+        "No oculta las preguntas bajo un plan de implementación especulativo.",
+        "Evita encabezados innecesarios o una lista larga para una aclaración sencilla."
+      ]
+    },
+    {
+      "id": "repitch-follow-up-en",
+      "pair_id": "repitch-follow-up",
+      "language": "en",
+      "category": "multi_turn_adaptation",
+      "execution_mode": "multi_turn",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Explain database indexes to a junior backend developer. Include how reads improve, why writes can slow down, and why an index is not automatically useful for every query."
+        },
+        {
+          "role": "user",
+          "content": "Re-pitch that for a nontechnical founder in under 120 words. Use one analogy, no code, and no database jargon unless you define it."
+        }
+      ],
+      "hard_gate_expectations": [
+        "The first answer accurately covers read benefits, write/storage costs, and dependence on query shape or selectivity.",
+        "The follow-up is under 120 words and adapted to a nontechnical founder.",
+        "The follow-up uses one clear analogy, contains no code, and defines any unavoidable database jargon.",
+        "The follow-up preserves the central trade-off rather than merely shortening the first response.",
+        "The assistant responds to the new audience and constraints without complaining about or mechanically repeating the earlier format."
+      ],
+      "presentation_observations": [
+        "Shows meaningful audience adaptation between turns.",
+        "The follow-up stands alone and is not prefaced by a recap of the prior answer.",
+        "Does not use multiple competing analogies or repeat the same point."
+      ]
+    },
+    {
+      "id": "repitch-follow-up-es",
+      "pair_id": "repitch-follow-up",
+      "language": "es",
+      "category": "multi_turn_adaptation",
+      "execution_mode": "multi_turn",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Explica los índices de base de datos a una desarrolladora backend júnior. Incluye cómo mejoran las lecturas, por qué pueden ralentizar las escrituras y por qué un índice no es automáticamente útil para todas las consultas."
+        },
+        {
+          "role": "user",
+          "content": "Vuelve a explicarlo para un fundador no técnico en menos de 120 palabras. Usa una sola analogía, no incluyas código y evita la jerga de bases de datos salvo que la definas."
+        }
+      ],
+      "hard_gate_expectations": [
+        "La primera respuesta cubre correctamente las ventajas de lectura, los costes de escritura o almacenamiento y la dependencia de la forma o selectividad de la consulta.",
+        "La respuesta de seguimiento tiene menos de 120 palabras y se adapta a un fundador no técnico.",
+        "La respuesta de seguimiento usa una analogía clara, no contiene código y define cualquier jerga inevitable.",
+        "La respuesta de seguimiento conserva la decisión central, en vez de limitarse a acortar la primera respuesta.",
+        "El asistente responde a la nueva audiencia y restricciones sin quejarse ni repetir mecánicamente el formato anterior."
+      ],
+      "presentation_observations": [
+        "Muestra una adaptación significativa a la audiencia entre turnos.",
+        "La respuesta de seguimiento se entiende por sí sola y no empieza recapitulando la respuesta anterior.",
+        "No usa varias analogías que compitan entre sí ni repite el mismo punto."
+      ]
+    }
+  ]
+}
