@@ -9,8 +9,9 @@ import {
   type ModelIdentity,
 } from "./clarity-core.js";
 
-const STATE_ENTRY = "pi-clarify-state";
-const STATUS_KEY = "pi-clarify";
+const STATE_ENTRY = "pi-clarity-state";
+const LEGACY_STATE_ENTRY = "pi-clarify-state";
+const STATUS_KEY = "pi-clarity";
 const contracts = loadPromptContracts(import.meta.url);
 
 function modelIdentity(model: ModelIdentity | undefined): ModelIdentity | undefined {
@@ -21,7 +22,12 @@ function restoreEnabled(entries: ReturnType<ExtensionContext["sessionManager"]["
   let enabled = true;
 
   for (const entry of entries) {
-    if (entry.type !== "custom" || entry.customType !== STATE_ENTRY) continue;
+    if (
+      entry.type !== "custom" ||
+      (entry.customType !== STATE_ENTRY && entry.customType !== LEGACY_STATE_ENTRY)
+    ) {
+      continue;
+    }
     const data = entry.data as { enabled?: unknown } | undefined;
     if (typeof data?.enabled === "boolean") enabled = data.enabled;
   }

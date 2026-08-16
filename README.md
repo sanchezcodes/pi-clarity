@@ -1,6 +1,6 @@
-# pi-clarify
+# pi-clarity
 
-`pi-clarify` is a small, always-on Pi extension that appends a model-aware response-presentation contract before each agent run. It changes presentation instructions only: it does not post-process responses and does not make nested model calls.
+`pi-clarity` is a small, always-on Pi extension that appends a model-aware response-presentation contract before each agent run. It changes presentation instructions only: it does not post-process responses and does not make nested model calls.
 
 The repository also contains the evaluation harness and evidence used to choose the contracts.
 
@@ -9,7 +9,7 @@ The repository also contains the evaluation harness and evidence used to choose 
 Review the extension source before installing because Pi packages run with your user permissions. Then install the Git package:
 
 ```bash
-pi install git:github.com/sanchezcodes/pi-clarify
+pi install git:github.com/sanchezcodes/pi-clarity
 ```
 
 Start Pi, or run `/reload` in an existing interactive Pi session. Verify the active contract with:
@@ -49,7 +49,7 @@ The setting is stored in the current Pi session, including across `/reload`; a n
 Update the package and reload Pi resources:
 
 ```bash
-pi update git:github.com/sanchezcodes/pi-clarify
+pi update git:github.com/sanchezcodes/pi-clarity
 ```
 
 Then run:
@@ -66,7 +66,7 @@ Unpinned Git installs track the repository's current default branch when updated
 Remove the global package:
 
 ```bash
-pi uninstall git:github.com/sanchezcodes/pi-clarify
+pi uninstall git:github.com/sanchezcodes/pi-clarity
 ```
 
 Restart Pi or run `/reload`. `/clarity status` should then be unavailable.

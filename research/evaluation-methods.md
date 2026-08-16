@@ -1,4 +1,4 @@
-# Evaluation methods for pi-clarify
+# Evaluation methods for pi-clarity
 
 Research notes on how to measure whether an always-on, appended response-presentation
 prompt improves comprehension without regressing correctness, depth, latency, or cost.
@@ -85,7 +85,7 @@ reasoning ability**, and reports that strong judges such as GPT-4 reach "over 80
 with human preferences — "the same level of agreement between humans."
 Source: <https://arxiv.org/abs/2306.05685>
 
-This matters more than usual for pi-clarify, because two of the named biases point in the
+This matters more than usual for pi-clarity, because two of the named biases point in the
 same direction as the intervention under test:
 
 - **Verbosity bias** — a judge may reward the longer, more structured response for its
@@ -377,7 +377,7 @@ control. Latency should be reported as a distribution, never as a mean.
 
 ---
 
-## 8. Recommended method for pi-clarify
+## 8. Recommended method for pi-clarity
 
 ### 8.1 Run matrix
 

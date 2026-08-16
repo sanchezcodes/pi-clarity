@@ -479,7 +479,7 @@ test("legacy unscoped flags are audit notes, never candidate-specific blocking e
 test("readVerdictFlags and loadJudgments read legacy files without rewriting them", async () => {
   assert.deepEqual(readVerdictFlags(null), { A: [], B: [], unscoped: [] });
 
-  const directory = await mkdtemp(join(tmpdir(), "pi-clarify-judgments-"));
+  const directory = await mkdtemp(join(tmpdir(), "pi-clarity-judgments-"));
   const legacy = judgment({ round: 0, slot: "A", readability: "A_clearly_better", promptVersion: "exploratory-1" });
   const onDisk = JSON.stringify({ ...legacy, verdict: { ...legacy.verdict, flags: ["identity_leakage"] } }, null, 2);
   const path = join(directory, "legacy.json");
