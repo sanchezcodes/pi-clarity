@@ -2,6 +2,13 @@
   "name": "pi-clarity",
   "version": "0.1.0",
   "description": "Model-aware response-presentation contracts for Pi",
+  "license": "MIT",
+  "files": [
+    "extensions/**/*.ts",
+    "prompts/**/*.md",
+    "README.md",
+    "LICENSE"
+  ],
   "keywords": [
     "pi-package"
   ],
