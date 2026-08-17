@@ -1,0 +1,6 @@
+{
+  "*.{js,mjs,cjs,ts,tsx,json,jsonc,md,yml,yaml,txt,toml,ini,env,sh,bash,zsh}": [
+    "prettier --ignore-unknown --write",
+    "secretlint --no-glob"
+  ]
+}

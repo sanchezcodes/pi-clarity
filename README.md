@@ -26,10 +26,10 @@ A footer status and notification show whether clarity is on, the selected contra
 
 The extension is enabled by default for each session and appends to Pi's existing system prompt; it never replaces that prompt.
 
-| Active model id | Contract file |
-| --- | --- |
-| `gpt-5.6-sol` | `prompts/strong.md` |
-| `claude-opus-5` | `prompts/balanced.md` |
+| Active model id            | Contract file         |
+| -------------------------- | --------------------- |
+| `gpt-5.6-sol`              | `prompts/strong.md`   |
+| `claude-opus-5`            | `prompts/balanced.md` |
 | Any other or unknown model | `prompts/balanced.md` |
 
 Selection keys primarily on the exact model id, so the same model works through different providers. Provider and model are still recorded in `/clarity status` and the footer. The Markdown files above are loaded directly by the extension and remain the single source of truth.
@@ -89,3 +89,7 @@ Restart Pi or run `/reload`. `/clarity status` should then be unavailable.
 - `reports/` — decisions and final recommendation
 
 The evaluated models are `cliproxy-codex/gpt-5.6-sol` and `cliproxy-claude/claude-opus-5`, in English and Spanish. Correctness and task completion remain regression gates for presentation improvements.
+
+## Contributing and security
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request. Evaluation data, traces, model outputs, and fixtures must follow [`docs/data-handling.md`](docs/data-handling.md). Report vulnerabilities privately according to [`SECURITY.md`](SECURITY.md).

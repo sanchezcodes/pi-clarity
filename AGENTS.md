@@ -10,7 +10,10 @@ This repository evaluates response-presentation prompts for Pi.
 - Blind prompt-variant identities during qualitative judging.
 - Correctness and task completion are hard gates, not dimensions that readability can compensate for.
 - Cite primary sources in research notes.
-- Never commit credentials or Pi session files.
+- Follow `docs/data-handling.md` for every fixture, trace, model output, log, screenshot, or imported dataset.
+- Use synthetic public-safe data by default; never copy data from a private workspace merely because it is available locally.
+- Never commit credentials, Pi session files, raw private conversations, production traces, personal information, or local absolute home paths.
+- Before committing, inspect `git diff --cached` and run `npm run check`. Treat automated scanners as defense in depth, not proof that data is safe.
 
 ## Collaboration
 

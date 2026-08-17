@@ -1,0 +1,4 @@
+npx lint-staged
+npm run lint:data
+npm run typecheck
+npm test

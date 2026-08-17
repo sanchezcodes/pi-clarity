@@ -25,14 +25,22 @@
     "analyze": "tsx src/cli.ts analyze",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm test"
+    "lint:secrets": "secretlint \"**/*\"",
+    "lint:data": "node scripts/check-data-safety.mjs --all",
+    "check": "npm run lint:secrets && npm run lint:data && npm run typecheck && npm test",
+    "prepare": "husky"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.84.2",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
     "@types/node": "^22.15.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.9.6",
+    "secretlint": "^13.0.4",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0"
   }
