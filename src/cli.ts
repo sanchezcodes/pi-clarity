@@ -135,7 +135,7 @@ model turns caused by tool calls.`);
 }
 
 async function mapConcurrent<T, R>(items: T[], concurrency: number, worker: (item: T, index: number) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length);
+  const results = Array<R>(items.length);
   let next = 0;
   async function runWorker(): Promise<void> {
     while (true) {

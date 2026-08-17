@@ -454,6 +454,7 @@ test("legacy unscoped flags are audit notes, never candidate-specific blocking e
   const legacy = (round: 0 | 1, slot: "A" | "B", readability: ReadabilityLabel): Judgment => {
     const base = judgment({ round, slot, readability, pair, promptVersion: "exploratory-1" });
     // Legacy shape on disk: one unscoped array with no slot attribution.
+    // oxlint-disable-next-line anti-slop/no-chained-type-assertions -- The fixture must cross the type boundary to represent the legacy on-disk format.
     return { ...base, verdict: { ...base.verdict, flags: ["fabricated_tool_use"] } as unknown as JudgeVerdict };
   };
   const judgments = [legacy(0, "A", "A_clearly_better"), legacy(1, "B", "B_clearly_better")].map(normalizeJudgment);
