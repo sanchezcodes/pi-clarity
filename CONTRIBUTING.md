@@ -11,7 +11,7 @@ npm ci
 npm run check
 ```
 
-`npm ci` installs a Husky pre-commit hook. The hook formats supported staged files, runs Secretlint, applies the repository data-safety policy, type-checks the project, and runs the tests.
+`npm ci` installs a Husky pre-commit hook. The hook formats supported staged files, runs Secretlint, applies the repository data-safety policy, lints the project with its vendored anti-slop policy, type-checks the project, and runs the tests.
 
 ## Pull requests
 
