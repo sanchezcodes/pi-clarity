@@ -35,16 +35,16 @@
     "@earendil-works/pi-coding-agent": "*"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.2",
-    "@oxlint/plugins": "^1.78.0",
-    "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
+    "@earendil-works/pi-coding-agent": "0.85.0",
+    "@oxlint/plugins": "^1.81.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.5",
     "@types/node": "^22.15.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "oxlint": "^1.78.0",
+    "oxlint": "^1.81.0",
     "prettier": "^3.9.6",
-    "secretlint": "^13.0.4",
-    "tsx": "^4.19.0",
+    "secretlint": "^13.0.5",
+    "tsx": "^4.23.13",
     "typescript": "^5.8.0"
   }
 }
