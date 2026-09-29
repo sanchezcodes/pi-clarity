@@ -35,7 +35,7 @@
     "@earendil-works/pi-coding-agent": "*"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.2",
+    "@earendil-works/pi-coding-agent": "0.99.1",
     "@oxlint/plugins": "^1.78.0",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
     "@types/node": "^22.15.0",
