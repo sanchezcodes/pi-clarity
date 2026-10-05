@@ -36,15 +36,15 @@
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.84.2",
-    "@oxlint/plugins": "^1.78.0",
-    "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
+    "@oxlint/plugins": "^1.86.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.6",
     "@types/node": "^22.15.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "oxlint": "^1.78.0",
-    "prettier": "^3.9.6",
-    "secretlint": "^13.0.4",
-    "tsx": "^4.19.0",
+    "oxlint": "^1.86.0",
+    "prettier": "^3.9.9",
+    "secretlint": "^13.0.6",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.0"
   }
 }
